@@ -2,28 +2,27 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Win Challenge</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f3f0ff;--ink:#1b1740;--card:#fff;--mute:#6a6591;--line:#d9d3f5;--acc:#ff4f6d;--ok:#18a874;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15122e;--ink:#f1eeff;--card:#201b45;--mute:#a49fd0;--line:#352f68;--acc:#ff6b86;--ok:#3ddba0}}
-:root[data-theme="dark"]{--bg:#15122e;--ink:#f1eeff;--card:#201b45;--mute:#a49fd0;--line:#352f68;--acc:#ff6b86;--ok:#3ddba0}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
+:root{--bg:#f3f0ff;--ink:#1b1740;--card:#fff;--mute:#6a6591;--line:#d9d3f5;--acc:#ff4f6d;--ok:#18a874}
+@media (prefers-color-scheme:dark){:root{--bg:#15122e;--ink:#f1eeff;--card:#201b45;--mute:#a49fd0;--line:#352f68;--acc:#ff6b86;--ok:#3ddba0}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.5 'DM Sans',system-ui,sans-serif}
 main{max-width:640px;margin:0 auto;padding:40px 20px 56px}
-h1{font:800 clamp(44px,13vw,84px)/.95 'Bricolage Grotesque',system-ui,sans-serif;margin:0 0 14px;letter-spacing:-.02em}
+h1{font:800 clamp(44px,13vw,84px)/.95 'Bricolage Grotesque',system-ui,sans-serif;margin:0 0 14px;letter-spacing:-.02em;user-select:none;-webkit-user-select:none}
 .sub{color:var(--mute);margin:0 0 28px}
 .total{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
 .total b{font:800 56px/1 'Bricolage Grotesque',sans-serif;color:var(--acc)}
 .total span{color:var(--mute)}
 .bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:32px}
-.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .6s}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .5s}
 ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
-li{display:flex;align-items:center;gap:16px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px 18px}
+li{display:flex;align-items:center;gap:16px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px 18px;width:100%;text-align:left;color:inherit;font:inherit}
 li.done{border-color:var(--ok)}
+.admin li{cursor:pointer}
+.admin li:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 .mark{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-weight:600;color:transparent}
 li.done .mark{background:var(--ok);border-color:var(--ok);color:#fff}
 .txt{flex:1;min-width:0}
@@ -32,38 +31,171 @@ li.done .mark{background:var(--ok);border-color:var(--ok);color:#fff}
 .cnt{font:800 22px 'Bricolage Grotesque',sans-serif;color:var(--mute)}
 li.done .cnt{color:var(--ok)}
 footer{margin-top:28px;color:var(--mute);font-size:14px}
+#panel{display:none;margin-top:24px;padding:16px;border:2px dashed var(--line);border-radius:14px}
+#panel p{margin:0 0 10px;font-size:15px}
+#panel input{width:100%;padding:10px 12px;font:inherit;border:2px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);margin-bottom:10px}
+button.b{font:600 16px 'DM Sans',sans-serif;padding:10px 16px;border-radius:10px;border:0;background:var(--acc);color:#fff;cursor:pointer}
+button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
+#msg{min-height:1.4em}
 </style>
 </head>
 <body>
-<main>
-<h1>Win Challenge</h1>
+<main id="app">
+<h1 id="title">Win Challenge</h1>
 <p class="sub">Fünf Aufgaben, jede muss geschafft werden. So weit sind wir.</p>
 <div class="total"><b id="n">0/5</b><span>Aufgaben geschafft</span></div>
 <div class="bar"><i id="p"></i></div>
 <ul id="list"></ul>
-<footer>Stand wird vom Challenge-Host aktualisiert.</footer>
+<div id="panel">
+  <div id="setup">
+    <p>Einrichtung: GitHub-Token einfügen und ein Passwort wählen (mindestens 8 Zeichen). Das Token wird damit verschlüsselt in diesem Browser gespeichert.</p>
+    <input id="tok" type="password" placeholder="GitHub-Token" autocomplete="off">
+    <input id="pw1" type="password" placeholder="Neues Passwort" autocomplete="new-password">
+    <button class="b" id="save">Speichern</button>
+  </div>
+  <div id="locked" style="display:none">
+    <p>Admin-Modus ist gesperrt.</p>
+    <input id="pw2" type="password" placeholder="Passwort" autocomplete="current-password">
+    <button class="b" id="unlock">Entsperren</button>
+    <button class="b g" id="wipe">Token löschen</button>
+  </div>
+  <div id="logged" style="display:none">Tippe auf eine Aufgabe zum Abhaken. <button class="b g" id="out">Sperren</button></div>
+</div>
+<footer id="msg"></footer>
 </main>
 <script>
-// Fortschritt hier anpassen: done = geschafft (1) oder offen (0)
+var OWNER="Scede76", REPO="Win-Challenge", FILE="status.json", BRANCH="main";
+var API="https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/"+FILE;
 var tasks=[
- {t:"Arena",d:"1. Platz, zweimal hintereinander (B2B)",done:0,max:1},
- {t:"Fortnite",d:"Win, zweimal hintereinander (B2B)",done:0,max:1},
- {t:"Rocket League",d:"Ein Win",done:0,max:1},
- {t:"Phasmophobia",d:"Schwierigste Stufe",done:0,max:1},
- {t:"Wer wird Millionär",d:"Durchspielen",done:0,max:1}
+ {id:"arena",t:"Arena",d:"1. Platz, zweimal hintereinander (B2B)"},
+ {id:"fortnite",t:"Fortnite",d:"Win, zweimal hintereinander (B2B)"},
+ {id:"rl",t:"Rocket League",d:"Ein Win"},
+ {id:"phasmo",t:"Phasmophobia",d:"Schwierigste Stufe"},
+ {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen"}
 ];
-var ul=document.getElementById('list'),c=0;
-tasks.forEach(function(k){
- var ok=k.done>=k.max;if(ok)c++;
- var li=document.createElement('li');if(ok)li.className='done';
- li.innerHTML='<div class="mark">✓</div><div class="txt"><strong></strong><small></small></div><div class="cnt"></div>';
- li.querySelector('strong').textContent=k.t;
- li.querySelector('small').textContent=k.d;
- li.querySelector('.cnt').textContent=k.done+'/'+k.max;
- ul.appendChild(li);
-});
-document.getElementById('n').textContent=c+'/'+tasks.length;
-document.getElementById('p').style.width=(c/tasks.length*100)+'%';
+var state={}, token="", busy=false, vault="";
+try{vault=localStorage.getItem("wc_vault")||"";localStorage.removeItem("wc_token");}catch(e){}
+var $=function(i){return document.getElementById(i)};
+
+function say(t){$("msg").textContent=t||"";}
+function render(){
+  var ul=$("list"),c=0;ul.innerHTML="";
+  tasks.forEach(function(k){
+    var ok=!!state[k.id];if(ok)c++;
+    var li=document.createElement(token?"button":"li");
+    li.className=ok?"done":"";
+    li.innerHTML='<div class="mark">✓</div><div class="txt"><strong></strong><small></small></div><div class="cnt"></div>';
+    li.querySelector("strong").textContent=k.t;
+    li.querySelector("small").textContent=k.d;
+    li.querySelector(".cnt").textContent=(ok?1:0)+"/1";
+    if(token){li.type="button";li.onclick=function(){toggle(k.id)};}
+    var wrap=document.createElement("li");
+    if(token){wrap.style.padding="0";wrap.style.border="0";wrap.style.background="none";li.style.cssText="width:100%;cursor:pointer;background:var(--card);border:2px solid var(--"+(ok?"ok":"line")+");border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:16px;text-align:left;color:inherit;font:inherit";wrap.appendChild(li);ul.appendChild(wrap);}
+    else ul.appendChild(li);
+  });
+  $("n").textContent=c+"/"+tasks.length;
+  $("p").style.width=(c/tasks.length*100)+"%";
+  $("setup").style.display=(!token&&!vault)?"block":"none";
+  $("locked").style.display=(!token&&vault)?"block":"none";
+  $("logged").style.display=token?"block":"none";
+}
+
+function enc(s){return btoa(unescape(encodeURIComponent(s)));}
+function dec(s){return decodeURIComponent(escape(atob(s.replace(/\n/g,""))));}
+
+function load(){
+  var h={"Accept":"application/vnd.github.raw+json"};
+  if(token)h["Authorization"]="Bearer "+token;
+  return fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:h,cache:"no-store"})
+    .then(function(r){if(r.status===404)return {};if(!r.ok)throw 0;return r.json();})
+    .then(function(j){if(!busy){state=j||{};render();}})
+    .catch(function(){});
+}
+
+function write(next,retry){
+  var h={"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json"};
+  return fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:h,cache:"no-store"})
+    .then(function(r){
+      if(r.status===404)return null;
+      if(r.status===401||r.status===403)throw new Error("auth");
+      if(!r.ok)throw new Error("get");
+      return r.json();
+    })
+    .then(function(cur){
+      var body={message:"Update Status",content:enc(JSON.stringify(next,null,1)),branch:BRANCH};
+      if(cur&&cur.sha)body.sha=cur.sha;
+      return fetch(API,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},h),body:JSON.stringify(body)});
+    })
+    .then(function(r){
+      if((r.status===409||r.status===422)&&!retry)return write(next,true);
+      if(r.status===401||r.status===403)throw new Error("auth");
+      if(!r.ok)throw new Error("put");
+    });
+}
+
+function toggle(id){
+  if(busy)return;
+  busy=true;
+  var next=Object.assign({},state);next[id]=next[id]?0:1;
+  var old=state;state=next;render();say("Speichere …");
+  write(next).then(function(){say("Gespeichert. Für alle sichtbar.");})
+  .catch(function(e){
+    state=old;render();
+    say(e.message==="auth"?"Token ungültig oder ohne Schreibrecht für dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
+  }).then(function(){busy=false;});
+}
+
+// Admin-Panel: 5x auf den Titel tippen oder #admin an die Adresse hängen
+var taps=0,tt;
+$("title").onclick=function(){taps++;clearTimeout(tt);tt=setTimeout(function(){taps=0},1500);if(taps>=5){taps=0;$("panel").style.display="block";}};
+if(location.hash==="#admin"||vault)$("panel").style.display="block";
+
+function b64(buf){var a=new Uint8Array(buf),s="";for(var i=0;i<a.length;i++)s+=String.fromCharCode(a[i]);return btoa(s);}
+function unb64(s){var b=atob(s),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
+function deriveKey(pw,salt){
+  return crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"])
+   .then(function(k){return crypto.subtle.deriveKey({name:"PBKDF2",salt:salt,iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);});
+}
+function lockToken(tok,pw){
+  var salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  return deriveKey(pw,salt).then(function(k){return crypto.subtle.encrypt({name:"AES-GCM",iv:iv},k,new TextEncoder().encode(tok));})
+   .then(function(c){return JSON.stringify({s:b64(salt),i:b64(iv),c:b64(c)});});
+}
+function unlockToken(v,pw){
+  v=JSON.parse(v);
+  return deriveKey(pw,unb64(v.s)).then(function(k){return crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(v.i)},k,unb64(v.c));})
+   .then(function(p){return new TextDecoder().decode(p);});
+}
+
+$("save").onclick=function(){
+  var t=$("tok").value.trim(),pw=$("pw1").value;
+  if(!t){say("Bitte Token einfügen.");return;}
+  if(pw.length<8){say("Das Passwort braucht mindestens 8 Zeichen.");return;}
+  if(!window.crypto||!crypto.subtle){say("Verschlüsselung wird in diesem Browser nicht unterstützt.");return;}
+  say("Verschlüssele …");
+  lockToken(t,pw).then(function(v){
+    vault=v;try{localStorage.setItem("wc_vault",vault);}catch(e){}
+    token=t;$("tok").value="";$("pw1").value="";say("Gespeichert. Admin-Modus ist entsperrt.");render();load();
+  }).catch(function(){say("Speichern fehlgeschlagen.");});
+};
+$("unlock").onclick=function(){
+  var pw=$("pw2").value;if(!pw)return;
+  say("Entsperre …");
+  unlockToken(vault,pw).then(function(t){
+    token=t;$("pw2").value="";say("");render();load();
+  }).catch(function(){say("Falsches Passwort.");});
+};
+$("pw2").onkeydown=function(e){if(e.key==="Enter")$("unlock").onclick();};
+$("out").onclick=function(){token="";say("Gesperrt.");render();};
+$("wipe").onclick=function(){
+  if(!confirm("Gespeichertes Token auf diesem Gerät löschen?"))return;
+  vault="";token="";try{localStorage.removeItem("wc_vault");}catch(e){}
+  say("Token gelöscht.");render();
+};
+
+render();load();
+setInterval(function(){if(!document.hidden)load();},120000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)load();});
 </script>
 </body>
 </html>
