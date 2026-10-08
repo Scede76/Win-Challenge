@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Win Challenge</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f0ff;--ink:#1b1740;--card:#fff;--mute:#6a6591;--line:#d9d3f5;--acc:#ff4f6d;--ok:#18a874;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15122e;--ink:#f1eeff;--card:#201b45;--mute:#a49fd0;--line:#352f68;--acc:#ff6b86;--ok:#3ddba0}}
+:root[data-theme="dark"]{--bg:#15122e;--ink:#f1eeff;--card:#201b45;--mute:#a49fd0;--line:#352f68;--acc:#ff6b86;--ok:#3ddba0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.5 'DM Sans',system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:40px 20px 56px}
+h1{font:800 clamp(44px,13vw,84px)/.95 'Bricolage Grotesque',system-ui,sans-serif;margin:0 0 14px;letter-spacing:-.02em}
+.sub{color:var(--mute);margin:0 0 28px}
+.total{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+.total b{font:800 56px/1 'Bricolage Grotesque',sans-serif;color:var(--acc)}
+.total span{color:var(--mute)}
+.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:32px}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .6s}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+li{display:flex;align-items:center;gap:16px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px 18px}
+li.done{border-color:var(--ok)}
+.mark{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-weight:600;color:transparent}
+li.done .mark{background:var(--ok);border-color:var(--ok);color:#fff}
+.txt{flex:1;min-width:0}
+.txt strong{display:block;font:800 20px/1.2 'Bricolage Grotesque',sans-serif}
+.txt small{color:var(--mute)}
+.cnt{font:800 22px 'Bricolage Grotesque',sans-serif;color:var(--mute)}
+li.done .cnt{color:var(--ok)}
+footer{margin-top:28px;color:var(--mute);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>Win Challenge</h1>
+<p class="sub">Fünf Aufgaben, jede muss geschafft werden. So weit sind wir.</p>
+<div class="total"><b id="n">0/5</b><span>Aufgaben geschafft</span></div>
+<div class="bar"><i id="p"></i></div>
+<ul id="list"></ul>
+<footer>Stand wird vom Challenge-Host aktualisiert.</footer>
+</main>
+<script>
+// Fortschritt hier anpassen: done = geschafft (1) oder offen (0)
+var tasks=[
+ {t:"Arena",d:"1. Platz, zweimal hintereinander (B2B)",done:0,max:1},
+ {t:"Fortnite",d:"Win, zweimal hintereinander (B2B)",done:0,max:1},
+ {t:"Rocket League",d:"Ein Win",done:0,max:1},
+ {t:"Phasmophobia",d:"Schwierigste Stufe",done:0,max:1},
+ {t:"Wer wird Millionär",d:"Durchspielen",done:0,max:1}
+];
+var ul=document.getElementById('list'),c=0;
+tasks.forEach(function(k){
+ var ok=k.done>=k.max;if(ok)c++;
+ var li=document.createElement('li');if(ok)li.className='done';
+ li.innerHTML='<div class="mark">✓</div><div class="txt"><strong></strong><small></small></div><div class="cnt"></div>';
+ li.querySelector('strong').textContent=k.t;
+ li.querySelector('small').textContent=k.d;
+ li.querySelector('.cnt').textContent=k.done+'/'+k.max;
+ ul.appendChild(li);
+});
+document.getElementById('n').textContent=c+'/'+tasks.length;
+document.getElementById('p').style.width=(c/tasks.length*100)+'%';
+</script>
+</body>
+</html>
