@@ -20,16 +20,16 @@ h1{font:800 clamp(44px,13vw,84px)/.95 'Bricolage Grotesque',system-ui,sans-serif
 .bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .5s}
 ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 li{display:flex;align-items:center;gap:16px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px 18px;width:100%;text-align:left;color:inherit;font:inherit}
-li.done{border-color:var(--ok)}
+.done{border-color:var(--ok)}
 .admin li{cursor:pointer}
 .admin li:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
-.mark{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-weight:600;color:transparent}
-li.done .mark{background:var(--ok);border-color:var(--ok);color:#fff}
+.mark{flex:none;width:34px;height:34px;border-radius:9px;border:2px solid var(--line);display:grid;place-items:center;font-weight:600;color:transparent}
+.done .mark{background:var(--ok);border-color:var(--ok);color:#fff}
 .txt{flex:1;min-width:0}
 .txt strong{display:block;font:800 20px/1.2 'Bricolage Grotesque',sans-serif}
 .txt small{color:var(--mute)}
 .cnt{font:800 22px 'Bricolage Grotesque',sans-serif;color:var(--mute)}
-li.done .cnt{color:var(--ok)}
+.done .cnt{color:var(--ok)}
 footer{margin-top:28px;color:var(--mute);font-size:14px}
 #panel{display:none;margin-top:24px;padding:16px;border:2px dashed var(--line);border-radius:14px}
 #panel p{margin:0 0 10px;font-size:15px}
@@ -42,6 +42,7 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
 <body>
 <main id="app">
 <h1 id="title">Win Challenge</h1>
+<p class="sub">Fünf Aufgaben, jede muss geschafft werden. So weit sind wir.</p>
 <div class="total"><b id="n">0/5</b><span>Aufgaben geschafft</span></div>
 <div class="bar"><i id="p"></i></div>
 <ul id="list"></ul>
@@ -72,10 +73,10 @@ var tasks=[
  {id:"phasmo",t:"Phasmophobia",d:"Schwierigste Stufe"},
  {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen"}
 ];
-var state={}, token="", busy=false, vault="";
+var state={}, token="", busy=false, vault="", holdUntil=0;
 try{vault=localStorage.getItem("wc_vault")||"";localStorage.removeItem("wc_token");}catch(e){}
 var $=function(i){return document.getElementById(i)};
-
+ 
 function say(t){$("msg").textContent=t||"";}
 function render(){
   var ul=$("list"),c=0;ul.innerHTML="";
@@ -98,19 +99,19 @@ function render(){
   $("locked").style.display=(!token&&vault)?"block":"none";
   $("logged").style.display=token?"block":"none";
 }
-
+ 
 function enc(s){return btoa(unescape(encodeURIComponent(s)));}
 function dec(s){return decodeURIComponent(escape(atob(s.replace(/\n/g,""))));}
-
+ 
 function load(){
   var h={"Accept":"application/vnd.github.raw+json"};
   if(token)h["Authorization"]="Bearer "+token;
   return fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:h,cache:"no-store"})
     .then(function(r){if(r.status===404)return {};if(!r.ok)throw 0;return r.json();})
-    .then(function(j){if(!busy){state=j||{};render();}})
+    .then(function(j){if(!busy&&!(token&&Date.now()<holdUntil)){state=j||{};render();}})
     .catch(function(){});
 }
-
+ 
 function write(next,retry){
   var h={"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json"};
   return fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:h,cache:"no-store"})
@@ -131,24 +132,24 @@ function write(next,retry){
       if(!r.ok)throw new Error("put");
     });
 }
-
+ 
 function toggle(id){
   if(busy)return;
   busy=true;
   var next=Object.assign({},state);next[id]=next[id]?0:1;
-  var old=state;state=next;render();say("Speichere …");
+  var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere …");
   write(next).then(function(){say("Gespeichert. Für alle sichtbar.");})
   .catch(function(e){
     state=old;render();
     say(e.message==="auth"?"Token ungültig oder ohne Schreibrecht für dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
   }).then(function(){busy=false;});
 }
-
+ 
 // Admin-Panel: 5x auf den Titel tippen oder #admin an die Adresse hängen
 var taps=0,tt;
 $("title").onclick=function(){taps++;clearTimeout(tt);tt=setTimeout(function(){taps=0},1500);if(taps>=5){taps=0;$("panel").style.display="block";}};
 if(location.hash==="#admin"||vault)$("panel").style.display="block";
-
+ 
 function b64(buf){var a=new Uint8Array(buf),s="";for(var i=0;i<a.length;i++)s+=String.fromCharCode(a[i]);return btoa(s);}
 function unb64(s){var b=atob(s),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
 function deriveKey(pw,salt){
@@ -165,7 +166,7 @@ function unlockToken(v,pw){
   return deriveKey(pw,unb64(v.s)).then(function(k){return crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(v.i)},k,unb64(v.c));})
    .then(function(p){return new TextDecoder().decode(p);});
 }
-
+ 
 $("save").onclick=function(){
   var t=$("tok").value.trim(),pw=$("pw1").value;
   if(!t){say("Bitte Token einfügen.");return;}
@@ -191,7 +192,7 @@ $("wipe").onclick=function(){
   vault="";token="";try{localStorage.removeItem("wc_vault");}catch(e){}
   say("Token gelöscht.");render();
 };
-
+ 
 render();load();
 setInterval(function(){if(!document.hidden)load();},120000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)load();});
