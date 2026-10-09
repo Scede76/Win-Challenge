@@ -85,6 +85,7 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
 <script>
 var OWNER="Scede76", REPO="Win-Challenge", FILE="status.json", BRANCH="main";
 var API="https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/"+FILE;
+var NTFY="https://ntfy.sh/wc-scede76-win-challenge";
 var tasks=[
  {id:"arena",t:"Arena",d:"1. Platz, zweimal hintereinander (B2B)",max:2},
  {id:"fortnite",t:"Fortnite",d:"Win, zweimal hintereinander (B2B)",max:2},
@@ -214,6 +215,7 @@ function write(next,retry){
       if((r.status===409||r.status===422)&&!retry)return write(next,true);
       if(r.status===401||r.status===403)throw new Error("auth");
       if(!r.ok)throw new Error("put");
+      setTimeout(function(){fetch(NTFY,{method:"POST",body:"1"}).catch(function(){});},800);
     });
 }
  
@@ -324,6 +326,14 @@ function ensureTick(){
 }
  
 render();load();ensureTick();
+try{
+  var es=new EventSource(NTFY+"/sse?since=now");
+  es.onmessage=function(){
+    if(busy)return;
+    load();
+    setTimeout(function(){if(!busy)load();},2000);
+  };
+}catch(e){}
 function scheduleLoad(){
   setTimeout(function(){
     Promise.resolve(load()).then(scheduleLoad,scheduleLoad);
