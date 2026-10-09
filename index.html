@@ -9,6 +9,10 @@
 @font-face{font-family:'Bricolage Grotesque';font-weight:800;font-style:normal;font-display:swap;src:url('fonts/bricolage-grotesque-800.woff2') format('woff2')}
 @font-face{font-family:'DM Sans';font-weight:400;font-style:normal;font-display:swap;src:url('fonts/dm-sans-400.woff2') format('woff2')}
 @font-face{font-family:'DM Sans';font-weight:600;font-style:normal;font-display:swap;src:url('fonts/dm-sans-600.woff2') format('woff2')}
+@font-face{font-family:'Bricolage Grotesque';font-weight:500;font-style:normal;font-display:swap;src:url('fonts/bricolage-grotesque-500.woff2') format('woff2')}
+@font-face{font-family:'Bricolage Grotesque';font-weight:800;font-style:normal;font-display:swap;src:url('fonts/bricolage-grotesque-800.woff2') format('woff2')}
+@font-face{font-family:'DM Sans';font-weight:400;font-style:normal;font-display:swap;src:url('fonts/dm-sans-400.woff2') format('woff2')}
+@font-face{font-family:'DM Sans';font-weight:600;font-style:normal;font-display:swap;src:url('fonts/dm-sans-600.woff2') format('woff2')}
 :root{--bg:#f3f0ff;--ink:#1b1740;--card:#fff;--mute:#6a6591;--line:#d9d3f5;--acc:#ff4f6d;--ok:#18a874}
 @media (prefers-color-scheme:dark){:root{--bg:#15122e;--ink:#f1eeff;--card:#201b45;--mute:#a49fd0;--line:#352f68;--acc:#ff6b86;--ok:#3ddba0}}
 *{box-sizing:border-box}
@@ -16,6 +20,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.5 'DM Sans',
 main{max-width:640px;margin:0 auto;padding:40px 20px 56px}
 h1{font:800 clamp(44px,13vw,84px)/.95 'Bricolage Grotesque',system-ui,sans-serif;margin:0 0 14px;letter-spacing:-.02em;user-select:none;-webkit-user-select:none}
 .sub{color:var(--mute);margin:0 0 28px}
+.stats{margin-bottom:24px}
+.stat{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px 18px}
+.stat label{display:block;color:var(--mute);font-size:14px;margin:0 0 6px}
+.stat b{display:block;font:800 clamp(22px,6vw,32px)/1.15 'Bricolage Grotesque',sans-serif;font-variant-numeric:tabular-nums}
+.stat .since{display:none;color:var(--mute);font-size:14px;margin-top:4px}
+.stat .acts{margin-top:12px}
+.stat .acts .b{margin:0}
 .total{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
 .total b{font:800 56px/1 'Bricolage Grotesque',sans-serif;color:var(--acc)}
 .total span{color:var(--mute)}
@@ -31,10 +42,16 @@ ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 li{display:flex;align-items:center;gap:16px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px 18px;width:100%;text-align:left;color:inherit;font:inherit}
 .done{border-color:var(--ok)}
 li.admin:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+li.admin:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 .mark{flex:none;width:34px;height:34px;border-radius:9px;border:2px solid var(--line);display:grid;place-items:center;font-weight:600;color:transparent}
 .done .mark{background:var(--ok);border-color:var(--ok);color:#fff}
 .txt{flex:1;min-width:0}
 .txt strong{display:block;font:800 20px/1.2 'Bricolage Grotesque',sans-serif}
+.txt small{display:block;color:var(--mute)}
+.txt .when{font-size:14px;margin-top:2px}
+.part{border-color:var(--acc)}
+li.admin{cursor:pointer;user-select:none;-webkit-user-select:none}
+li.admin:active{transform:scale(.99)}
 .txt small{display:block;color:var(--mute)}
 .txt .when{font-size:14px;margin-top:2px}
 .part{border-color:var(--acc)}
@@ -54,6 +71,15 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
 <body>
 <main id="app">
 <h1 id="title">Win Challenge</h1>
+<div class="stats">
+  <div class="stat">
+    <label>Laufzeit</label>
+    <b id="clock">Nicht gestartet</b>
+    <div class="since" id="since"></div>
+    <div class="acts" id="startWrap"><button class="b" id="start">Challenge starten</button></div>
+  </div>
+</div>
+<div class="total"><b id="n">0/5</b><span> geschafft</span></div>
 <div class="timer-wrap">
   <div class="timer-meta">
     <span class="timer-label">Challenge läuft seit</span>
@@ -80,6 +106,7 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
     <button class="b" id="unlock">Entsperren</button>
     <button class="b g" id="wipe">Token löschen</button>
   </div>
+  <div id="logged" style="display:none">Tippe auf eine Aufgabe, um +1 zu zählen. Bei vollem Stand setzt Tippen auf 0 zurück. Oben startest du die Challenge. <button class="b g" id="out">Sperren</button></div>
   <div id="logged" style="display:none">Tippe auf eine Aufgabe, um +1 zu zählen. Bei vollem Stand setzt Tippen auf 0 zurück. <button class="b g" id="out">Sperren</button></div>
 </div>
 <footer id="msg"></footer>
@@ -93,12 +120,41 @@ var tasks=[
  {id:"rl",t:"Rocket League",d:"Ein Win",max:1},
  {id:"phasmo",t:"Phasmophobia",d:"Schwierigste Stufe",max:1},
  {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1}
+ {id:"arena",t:"Arena",d:"1. Platz, zweimal hintereinander (B2B)",max:2},
+ {id:"fortnite",t:"Fortnite",d:"Win, zweimal hintereinander (B2B)",max:2},
+ {id:"rl",t:"Rocket League",d:"Ein Win",max:1},
+ {id:"phasmo",t:"Phasmophobia",d:"Schwierigste Stufe",max:1},
+ {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1}
 ];
 var state={}, token="", busy=false, vault="", holdUntil=0;
 try{vault=localStorage.getItem("wc_vault")||"";localStorage.removeItem("wc_token");}catch(e){}
 var $=function(i){return document.getElementById(i)};
  
 function say(t){$("msg").textContent=t||"";}
+// Eintrag in status.json: {"n":1,"at":"2026-10-09T12:00:00.000Z"}. Alte Zahlenwerte (0/1) werden weiter gelesen.
+function cnt(id){var v=state[id];if(v&&typeof v==="object")v=v.n;return Number(v)||0;}
+function when(id){var v=state[id];return(v&&typeof v==="object"&&v.at)?v.at:"";}
+function fmt(iso){
+  var d=new Date(iso);if(isNaN(d))return "";
+  return d.toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})+" Uhr";
+}
+function startedAt(){return state.startedAt||"";}
+function pad(n){return (n<10?"0":"")+n;}
+function elapsed(iso){
+  var ms=Date.now()-new Date(iso).getTime();
+  if(isNaN(ms)||ms<0)ms=0;
+  var s=Math.floor(ms/1000),d=Math.floor(s/86400);s%=86400;
+  var h=Math.floor(s/3600);s%=3600;
+  var m=Math.floor(s/60);s%=60;
+  var t=pad(h)+":"+pad(m)+":"+pad(s);
+  return d?(d+" Tag"+(d===1?"":"e")+" "+t):t;
+}
+function tickClock(){
+  var at=startedAt(),since=$("since");
+  $("clock").textContent=at?elapsed(at):"Nicht gestartet";
+  if(at){since.style.display="block";since.textContent="gestartet am "+fmt(at);}
+  else{since.style.display="none";since.textContent="";}
+}
 // Eintrag in status.json: {"n":1,"at":"2026-10-09T12:00:00.000Z"}. Alte Zahlenwerte (0/1) werden weiter gelesen.
 function cnt(id){var v=state[id];if(v&&typeof v==="object")v=v.n;return Number(v)||0;}
 function when(id){var v=state[id];return(v&&typeof v==="object"&&v.at)?v.at:"";}
@@ -166,7 +222,13 @@ function updateChallengeTimer(){
 }
 function render(){
   var ul=$("list"),done=0,sum=0,goal=0;ul.innerHTML="";
+  var ul=$("list"),done=0,sum=0,goal=0;ul.innerHTML="";
   tasks.forEach(function(k){
+    var c=Math.min(cnt(k.id),k.max),ok=c>=k.max,at=when(k.id);
+    if(ok)done++;sum+=c;goal+=k.max;
+    var li=document.createElement("li");
+    li.className=ok?"done":(c>0?"part":"");
+    li.innerHTML='<div class="mark">✓</div><div class="txt"><strong></strong><small class="d"></small><small class="when"></small></div><div class="cnt"></div>';
     var c=Math.min(cnt(k.id),k.max),ok=c>=k.max,at=when(k.id);
     if(ok)done++;sum+=c;goal+=k.max;
     var li=document.createElement("li");
@@ -183,7 +245,21 @@ function render(){
       li.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();bump(k);}};
     }
     ul.appendChild(li);
+    li.querySelector(".d").textContent=k.d;
+    li.querySelector(".when").textContent=(c>0&&at)?((ok?"Geschafft am ":"Zuletzt am ")+fmt(at)):"";
+    li.querySelector(".cnt").textContent=c+"/"+k.max;
+    if(token){
+      li.className+=" admin";li.tabIndex=0;li.setAttribute("role","button");
+      li.setAttribute("aria-label",k.t+", "+c+" von "+k.max);
+      li.onclick=function(){bump(k)};
+      li.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();bump(k);}};
+    }
+    ul.appendChild(li);
   });
+  $("n").textContent=done+"/"+tasks.length;
+  $("p").style.width=(sum/goal*100)+"%";
+  tickClock();
+  $("startWrap").style.display=startedAt()?"none":"block";
   $("n").textContent=done+"/"+tasks.length;
   $("p").style.width=(sum/goal*100)+"%";
   $("setup").style.display=(!token&&!vault)?"block":"none";
@@ -224,8 +300,30 @@ function write(next,retry){
     });
 }
  
+function saveMeta(patch,okMsg){
+  if(busy||!token)return;
+  var next=Object.assign({},state,patch);
+  delete next.attempts;
+  busy=true;
+  var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere \u2026");
+  write(next).then(function(){say(okMsg||"Gespeichert. F\u00FCr alle sichtbar.");})
+  .catch(function(e){
+    state=old;render();
+    say(e.message==="auth"?"Token ung\u00FCltig oder ohne Schreibrecht f\u00FCr dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
+  }).then(function(){busy=false;});
+}
+
+function bump(k){
 function bump(k){
   if(busy)return;
+  var c=Math.min(cnt(k.id),k.max),next=Object.assign({},state);
+  delete next.attempts;
+  if(c>=k.max){
+    if(!confirm("\u201E"+k.t+"\u201C auf 0 zur\u00FCcksetzen?"))return;
+    next[k.id]={n:0,at:""};
+  }else{
+    next[k.id]={n:c+1,at:new Date().toISOString()};
+  }
   var c=Math.min(cnt(k.id),k.max),next=Object.assign({},state);
   if(c>=k.max){
     if(!confirm("\u201E"+k.t+"\u201C auf 0 zur\u00FCcksetzen?"))return;
@@ -236,8 +334,11 @@ function bump(k){
   busy=true;
   var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere \u2026");
   write(next).then(function(){say("Gespeichert. F\u00FCr alle sichtbar.");})
+  var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere \u2026");
+  write(next).then(function(){say("Gespeichert. F\u00FCr alle sichtbar.");})
   .catch(function(e){
     state=old;render();
+    say(e.message==="auth"?"Token ung\u00FCltig oder ohne Schreibrecht f\u00FCr dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
     say(e.message==="auth"?"Token ung\u00FCltig oder ohne Schreibrecht f\u00FCr dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
   }).then(function(){busy=false;});
 }
@@ -289,6 +390,17 @@ $("wipe").onclick=function(){
   vault="";token="";try{localStorage.removeItem("wc_vault");}catch(e){}
   say("Token gelöscht.");render();
 };
+$("start").onclick=function(){
+  if(startedAt())return;
+  if(!token){
+    $("panel").style.display="block";
+    say("Zum Starten zuerst den Admin-Modus entsperren.");
+    return;
+  }
+  if(!confirm("Challenge jetzt starten? Die Laufzeit zählt dann für alle."))return;
+  saveMeta({startedAt:new Date().toISOString()},"Challenge gestartet.");
+};
+ 
  
 $("startChallenge").onclick=function(){
   if(!token)return;
@@ -324,6 +436,9 @@ $("toggleTimer").onclick=function(){
 };
 
 render();load();
+setInterval(tickClock,1000);
+setInterval(function(){if(!document.hidden)load();},120000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)load();});
 updateChallengeTimer();
 setInterval(function(){
   if(!document.hidden)load();

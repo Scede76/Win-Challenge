@@ -1,5 +1,8 @@
 {
- "arena": 0,
+ "arena": {
+  "n": 0,
+  "at": ""
+ },
  "fortnite": 0,
  "rl": 0,
  "phasmo": 0,
