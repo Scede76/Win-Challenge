@@ -6,5 +6,10 @@
  "fortnite": 0,
  "rl": 0,
  "phasmo": 0,
- "wwm": 0
+ "wwm": 0,
+ "timer": {
+  "running": true,
+  "elapsed": 0,
+  "started": "2026-10-09T14:37:14.578Z"
+ }
 }
