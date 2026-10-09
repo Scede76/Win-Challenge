@@ -9,7 +9,10 @@
   "at": ""
  },
  "phasmo": 0,
- "wwm": 0,
+ "wwm": {
+  "n": 1,
+  "at": "2026-10-09T20:41:57.598Z"
+ },
  "timer": {
   "running": true,
   "elapsed": 0,
