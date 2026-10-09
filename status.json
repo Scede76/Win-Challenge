@@ -8,8 +8,8 @@
  "phasmo": 0,
  "wwm": 0,
  "timer": {
-  "running": false,
+  "running": true,
   "elapsed": 0,
-  "started": null
+  "started": "2026-10-09T14:51:23.812Z"
  }
 }
