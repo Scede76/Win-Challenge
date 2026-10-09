@@ -52,7 +52,7 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
 <body>
 <main id="app">
 <h1 id="title">Win Challenge</h1>
-<div class="total"><b id="n">0/5</b><span>Aufgaben geschafft</span></div>
+<div class="total"><b id="n">0/6</b><span>Aufgaben geschafft</span></div>
 <div class="bar"><i id="p"></i></div>
 <div class="timer muted" id="timer">Noch nicht gestartet</div>
 <ul id="list"></ul>
@@ -78,6 +78,11 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
       <button class="b g" id="treset">Timer zurücksetzen</button>
     </div>
     <button class="b g" id="out">Sperren</button>
+    <p style="margin-top:14px">Neues Spiel: Name, Ziel, Anzahl.</p>
+    <input id="gname" placeholder="Name, z. B. Songspot" autocomplete="off">
+    <input id="gdesc" placeholder="Ziel, z. B. Durchspielen" autocomplete="off">
+    <input id="gmax" type="number" min="1" max="99" value="1" placeholder="Anzahl">
+    <button class="b" id="gadd">Spiel hinzufügen</button>
   </div>
 </div>
 <footer id="msg"></footer>
@@ -152,9 +157,13 @@ function updateTimerUI(){
     $("treset").style.display=(ms>0||t.running)?"inline-block":"none";
   }
 }
+function taskList(){
+  if(state.tasks&&state.tasks.length)return state.tasks;
+  return tasks;
+}
 function render(){
-  var ul=$("list"),done=0,sum=0,goal=0;ul.innerHTML="";
-  tasks.forEach(function(k){
+  var ul=$("list"),list=taskList(),done=0,sum=0,goal=0;ul.innerHTML="";
+  list.forEach(function(k){
     var c=Math.min(cnt(k.id),k.max),ok=c>=k.max,at=when(k.id);
     if(ok)done++;sum+=c;goal+=k.max;
     var li=document.createElement("li");
@@ -172,7 +181,7 @@ function render(){
     }
     ul.appendChild(li);
   });
-  $("n").textContent=done+"/"+tasks.length;
+  $("n").textContent=done+"/"+list.length;
   $("p").style.width=(sum/goal*100)+"%";
   $("setup").style.display=(!token&&!vault)?"block":"none";
   $("locked").style.display=(!token&&vault)?"block":"none";
@@ -194,20 +203,28 @@ function applyState(j){
   state=parseStatus(j);
   render();
 }
+function loadRaw(){
+  return fetch(RAW+"?t="+Date.now(),{cache:"no-store"})
+    .then(function(r){
+      noteServerDate(r);
+      if(!r.ok)throw 0;
+      return r.json();
+    })
+    .then(function(j){applyState(j);});
+}
 function load(){
   var h={"Accept":"application/vnd.github.raw+json"};
   if(token)h["Authorization"]="Bearer "+token;
   return fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:h,cache:"no-store"})
     .then(function(r){
       noteServerDate(r);
-      if(r.status===403||r.status===429){pollMs=60000;return null;}
-      pollMs=token?5000:10000;
+      if(r.status===403||r.status===429||!r.ok){pollMs=20000;return loadRaw();}
+      pollMs=token?5000:15000;
       if(r.status===404)return {};
-      if(!r.ok)throw 0;
       return r.json();
     })
     .then(function(j){if(j)applyState(j);})
-    .catch(function(){});
+    .catch(function(){return loadRaw().catch(function(){say("Stand konnte nicht geladen werden.");});});
 }
  
 function write(next,retry){
@@ -328,6 +345,22 @@ $("tresume").onclick=function(){
 $("treset").onclick=function(){
   if(!confirm("Timer auf 0 zurücksetzen?"))return;
   setTimer({running:false,elapsed:0,started:null});
+};
+$("gadd").onclick=function(){
+  var name=$("gname").value.trim(),desc=$("gdesc").value.trim(),max=Math.max(1,Math.min(99,Number($("gmax").value)||1));
+  if(!name){say("Bitte einen Namen eintragen.");return;}
+  var list=taskList().slice(),id=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||("spiel"+Date.now());
+  if(list.some(function(k){return k.id===id||k.t.toLowerCase()===name.toLowerCase();})){say("Dieses Spiel gibt es schon.");return;}
+  list.push({id:id,t:name,d:desc||"Ein Win",max:max});
+  var next=Object.assign({},state,{tasks:list});
+  if(busy)return;
+  busy=true;
+  var old=state;state=next;holdUntil=Date.now()+12000;render();say("Speichere …");
+  write(next).then(function(){$("gname").value="";$("gdesc").value="";say("Gespeichert. Für alle sichtbar.");})
+  .catch(function(e){
+    state=old;render();
+    say(e.message==="auth"?"Token ungültig oder ohne Schreibrecht für dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
+  }).then(function(){busy=false;});
 };
  
 // Live-Update des Timers jede Sekunde, wenn er läuft
