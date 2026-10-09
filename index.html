@@ -92,8 +92,7 @@ var tasks=[
  {id:"fortnite",t:"Fortnite",d:"Win, zweimal hintereinander (B2B)",max:2},
  {id:"rl",t:"Rocket League",d:"Ein Win",max:1},
  {id:"phasmo",t:"Phasmophobia",d:"Schwierigste Stufe",max:1},
- {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1},
- {id:"song",t:"Songspot",d:"Durchspielen",max:1}
+ {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1}
 ];
 var state={}, token="", busy=false, vault="", holdUntil=0, tickTimer=null, clockOffset=0, pollMs=25000;
 try{vault=localStorage.getItem("wc_vault")||"";localStorage.removeItem("wc_token");}catch(e){}
@@ -190,32 +189,24 @@ function parseStatus(j){
   return j||{};
 }
 function applyState(j){
-  if(!busy&&!(token&&Date.now()<holdUntil)){state=parseStatus(j);render();}
-}
-function loadRaw(){
-  return fetch(RAW+"?t="+Date.now(),{cache:"no-store"})
-    .then(function(r){
-      noteServerDate(r);
-      if(!r.ok)throw 0;
-      return r.json();
-    })
-    .then(function(j){applyState(j);})
-    .catch(function(){say("Stand konnte nicht geladen werden.");});
+  if(busy||(token&&Date.now()<holdUntil))return;
+  state=parseStatus(j);
+  render();
 }
 function load(){
-  if(!token)return loadRaw();
-  var h={"Accept":"application/vnd.github.raw+json","Authorization":"Bearer "+token};
+  var h={"Accept":"application/vnd.github.raw+json"};
+  if(token)h["Authorization"]="Bearer "+token;
   return fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:h,cache:"no-store"})
     .then(function(r){
       noteServerDate(r);
-      if(r.status===403||r.status===429){pollMs=70000;return loadRaw();}
-      pollMs=8000;
+      if(r.status===403||r.status===429){pollMs=60000;return null;}
+      pollMs=token?5000:10000;
       if(r.status===404)return {};
       if(!r.ok)throw 0;
       return r.json();
     })
-    .then(function(j){if(j!==undefined)applyState(j);})
-    .catch(function(){return loadRaw();});
+    .then(function(j){if(j)applyState(j);})
+    .catch(function(){});
 }
  
 function write(next,retry){
@@ -355,7 +346,7 @@ try{
     try{var wrap=JSON.parse(raw);if(wrap&&typeof wrap.message==="string")raw=wrap.message;}catch(e){}
     try{
       var j=JSON.parse(raw);
-      if(j&&typeof j==="object"&&j.timer){state=j;render();return;}
+      if(j&&typeof j==="object"&&("timer" in j||"arena" in j||"fortnite" in j)){state=j;render();return;}
     }catch(e){}
     load();
   };
