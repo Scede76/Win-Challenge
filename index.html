@@ -85,6 +85,7 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
 <script>
 var OWNER="Scede76", REPO="Win-Challenge", FILE="status.json", BRANCH="main";
 var API="https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/"+FILE;
+var RAW="https://raw.githubusercontent.com/"+OWNER+"/"+REPO+"/"+BRANCH+"/"+FILE;
 var NTFY="https://ntfy.sh/wc-scede76-win-challenge";
 var tasks=[
  {id:"arena",t:"Arena",d:"1. Platz, zweimal hintereinander (B2B)",max:2},
@@ -181,20 +182,39 @@ function render(){
 function enc(s){return btoa(unescape(encodeURIComponent(s)));}
 function dec(s){return decodeURIComponent(escape(atob(s.replace(/\n/g,""))));}
  
+function parseStatus(j){
+  if(j&&j.encoding==="base64"&&j.content){
+    try{return JSON.parse(dec(j.content))||{};}catch(e){return {};}
+  }
+  return j||{};
+}
+function applyState(j){
+  if(!busy&&!(token&&Date.now()<holdUntil)){state=parseStatus(j);render();}
+}
+function loadRaw(){
+  return fetch(RAW+"?t="+Date.now(),{cache:"no-store"})
+    .then(function(r){
+      noteServerDate(r);
+      if(!r.ok)throw 0;
+      return r.json();
+    })
+    .then(function(j){applyState(j);})
+    .catch(function(){say("Stand konnte nicht geladen werden.");});
+}
 function load(){
-  var h={"Accept":"application/vnd.github.raw+json"};
-  if(token)h["Authorization"]="Bearer "+token;
+  if(!token)return loadRaw();
+  var h={"Accept":"application/vnd.github.raw+json","Authorization":"Bearer "+token};
   return fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:h,cache:"no-store"})
     .then(function(r){
       noteServerDate(r);
-      if(r.status===403||r.status===429){pollMs=70000;return null;}
-      pollMs=token?8000:25000;
+      if(r.status===403||r.status===429){pollMs=70000;return loadRaw();}
+      pollMs=8000;
       if(r.status===404)return {};
       if(!r.ok)throw 0;
       return r.json();
     })
-    .then(function(j){if(j!==null&&!busy&&!(token&&Date.now()<holdUntil)){state=j||{};render();}})
-    .catch(function(){});
+    .then(function(j){if(j!==undefined)applyState(j);})
+    .catch(function(){return loadRaw();});
 }
  
 function write(next,retry){
