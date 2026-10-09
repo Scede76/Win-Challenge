@@ -92,7 +92,7 @@ var tasks=[
  {id:"phasmo",t:"Phasmophobia",d:"Schwierigste Stufe",max:1},
  {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1}
 ];
-var state={}, token="", busy=false, vault="", holdUntil=0, tickTimer=null;
+var state={}, token="", busy=false, vault="", holdUntil=0, tickTimer=null, clockOffset=0, pollMs=25000;
 try{vault=localStorage.getItem("wc_vault")||"";localStorage.removeItem("wc_token");}catch(e){}
 var $=function(i){return document.getElementById(i)};
  
@@ -108,11 +108,18 @@ function getTimer(){
   var t=state.timer||{};
   return{running:!!t.running,elapsed:Number(t.elapsed)||0,started:t.started||null};
 }
+function nowMs(){return Date.now()+clockOffset;}
+function noteServerDate(r){
+  var d=r&&r.headers&&r.headers.get("Date");
+  if(!d)return;
+  var s=new Date(d).getTime();
+  if(!isNaN(s))clockOffset=s-Date.now();
+}
 function currentElapsed(){
   var t=getTimer();
   if(t.running&&t.started){
     var start=new Date(t.started).getTime();
-    if(!isNaN(start))return t.elapsed+(Date.now()-start);
+    if(!isNaN(start))return t.elapsed+(nowMs()-start);
   }
   return t.elapsed;
 }
@@ -177,8 +184,15 @@ function load(){
   var h={"Accept":"application/vnd.github.raw+json"};
   if(token)h["Authorization"]="Bearer "+token;
   return fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:h,cache:"no-store"})
-    .then(function(r){if(r.status===404)return {};if(!r.ok)throw 0;return r.json();})
-    .then(function(j){if(!busy&&!(token&&Date.now()<holdUntil)){state=j||{};render();}})
+    .then(function(r){
+      noteServerDate(r);
+      if(r.status===403||r.status===429){pollMs=70000;return null;}
+      pollMs=token?8000:25000;
+      if(r.status===404)return {};
+      if(!r.ok)throw 0;
+      return r.json();
+    })
+    .then(function(j){if(j!==null&&!busy&&!(token&&Date.now()<holdUntil)){state=j||{};render();}})
     .catch(function(){});
 }
  
@@ -213,11 +227,11 @@ function bump(k){
     next[k.id]={n:c+1,at:new Date().toISOString()};
   }
   busy=true;
-  var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere \u2026");
-  write(next).then(function(){say("Gespeichert. F\u00FCr alle sichtbar.");})
+  var old=state;state=next;holdUntil=Date.now()+12000;render();say("Speichere \u2026");
+  write(next).then(function(){say("Gespeichert. Für alle sichtbar.");})
   .catch(function(e){
     state=old;render();
-    say(e.message==="auth"?"Token ung\u00FCltig oder ohne Schreibrecht f\u00FCr dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
+    say(e.message==="auth"?"Token ungültig oder ohne Schreibrecht für dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
   }).then(function(){busy=false;});
 }
  
@@ -225,7 +239,7 @@ function setTimer(nextTimer){
   if(busy)return;
   var next=Object.assign({},state,{timer:nextTimer});
   busy=true;
-  var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere \u2026");
+  var old=state;state=next;holdUntil=Date.now()+12000;render();say("Speichere \u2026");
   write(next).then(function(){say("Gespeichert. F\u00FCr alle sichtbar.");})
   .catch(function(e){
     state=old;render();
@@ -282,19 +296,19 @@ $("wipe").onclick=function(){
 };
  
 $("tstart").onclick=function(){
-  setTimer({running:true,elapsed:0,started:new Date().toISOString()});
+  setTimer({running:true,elapsed:0,started:new Date(nowMs()).toISOString()});
 };
 $("tpause").onclick=function(){
   var t=getTimer();
   var add=0;
   if(t.started){
     var start=new Date(t.started).getTime();
-    if(!isNaN(start))add=Date.now()-start;
+    if(!isNaN(start))add=nowMs()-start;
   }
   setTimer({running:false,elapsed:t.elapsed+add,started:null});
 };
 $("tresume").onclick=function(){
-  setTimer({running:true,elapsed:getTimer().elapsed,started:new Date().toISOString()});
+  setTimer({running:true,elapsed:getTimer().elapsed,started:new Date(nowMs()).toISOString()});
 };
 $("treset").onclick=function(){
   if(!confirm("Timer auf 0 zurücksetzen?"))return;
@@ -310,7 +324,12 @@ function ensureTick(){
 }
  
 render();load();ensureTick();
-setInterval(function(){if(!document.hidden)load();},120000);
+function scheduleLoad(){
+  setTimeout(function(){
+    Promise.resolve(load()).then(scheduleLoad,scheduleLoad);
+  },document.hidden?60000:pollMs);
+}
+scheduleLoad();
 document.addEventListener("visibilitychange",function(){if(!document.hidden)load();});
 </script>
 </body>
