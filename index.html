@@ -19,8 +19,10 @@ h1{font:800 clamp(44px,13vw,84px)/.95 'Bricolage Grotesque',system-ui,sans-serif
 .total{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
 .total b{font:800 56px/1 'Bricolage Grotesque',sans-serif;color:var(--acc)}
 .total span{color:var(--mute)}
-.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:32px}
+.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:20px}
 .bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .5s}
+.timer{font:800 clamp(22px,6vw,32px)/1.2 'Bricolage Grotesque',sans-serif;color:var(--acc);margin-bottom:28px;letter-spacing:-.01em}
+.timer.muted{color:var(--mute);font-weight:600;font-size:18px}
 ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 li{display:flex;align-items:center;gap:16px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px 18px;width:100%;text-align:left;color:inherit;font:inherit}
 .done{border-color:var(--ok)}
@@ -42,6 +44,8 @@ footer{margin-top:28px;color:var(--mute);font-size:14px}
 #panel input{width:100%;padding:10px 12px;font:inherit;border:2px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);margin-bottom:10px}
 button.b{font:600 16px 'DM Sans',sans-serif;padding:10px 16px;border-radius:10px;border:0;background:var(--acc);color:#fff;cursor:pointer}
 button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
+.timer-ctrl{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.timer-ctrl button{margin-left:0}
 #msg{min-height:1.4em}
 </style>
 </head>
@@ -50,6 +54,7 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
 <h1 id="title">Win Challenge</h1>
 <div class="total"><b id="n">0/5</b><span>Aufgaben geschafft</span></div>
 <div class="bar"><i id="p"></i></div>
+<div class="timer muted" id="timer">Noch nicht gestartet</div>
 <ul id="list"></ul>
 <div id="panel">
   <div id="setup">
@@ -64,7 +69,16 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
     <button class="b" id="unlock">Entsperren</button>
     <button class="b g" id="wipe">Token löschen</button>
   </div>
-  <div id="logged" style="display:none">Tippe auf eine Aufgabe, um +1 zu zählen. Bei vollem Stand setzt Tippen auf 0 zurück. <button class="b g" id="out">Sperren</button></div>
+  <div id="logged" style="display:none">
+    <p>Tippe auf eine Aufgabe, um +1 zu zählen. Bei vollem Stand setzt Tippen auf 0 zurück.</p>
+    <div class="timer-ctrl">
+      <button class="b" id="tstart">Timer starten</button>
+      <button class="b g" id="tpause">Pausieren</button>
+      <button class="b g" id="tresume">Fortsetzen</button>
+      <button class="b g" id="treset">Timer zurücksetzen</button>
+    </div>
+    <button class="b g" id="out">Sperren</button>
+  </div>
 </div>
 <footer id="msg"></footer>
 </main>
@@ -76,10 +90,9 @@ var tasks=[
  {id:"fortnite",t:"Fortnite",d:"Win, zweimal hintereinander (B2B)",max:2},
  {id:"rl",t:"Rocket League",d:"Ein Win",max:1},
  {id:"phasmo",t:"Phasmophobia",d:"Schwierigste Stufe",max:1},
- {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1},
- {id:"song",t:"Songspot",d:"Durchspielen",max:1}
+ {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1}
 ];
-var state={}, token="", busy=false, vault="", holdUntil=0;
+var state={}, token="", busy=false, vault="", holdUntil=0, tickTimer=null;
 try{vault=localStorage.getItem("wc_vault")||"";localStorage.removeItem("wc_token");}catch(e){}
 var $=function(i){return document.getElementById(i)};
  
@@ -90,6 +103,44 @@ function when(id){var v=state[id];return(v&&typeof v==="object"&&v.at)?v.at:"";}
 function fmt(iso){
   var d=new Date(iso);if(isNaN(d))return "";
   return d.toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})+" Uhr";
+}
+function getTimer(){
+  var t=state.timer||{};
+  return{running:!!t.running,elapsed:Number(t.elapsed)||0,started:t.started||null};
+}
+function currentElapsed(){
+  var t=getTimer();
+  if(t.running&&t.started){
+    var start=new Date(t.started).getTime();
+    if(!isNaN(start))return t.elapsed+(Date.now()-start);
+  }
+  return t.elapsed;
+}
+function fmtElapsed(ms){
+  if(ms<0)ms=0;
+  var s=Math.floor(ms/1000);
+  var d=Math.floor(s/86400);s%=86400;
+  var h=Math.floor(s/3600);s%=3600;
+  var m=Math.floor(s/60);s%=60;
+  var time=(h<10?"0":"")+h+":"+(m<10?"0":"")+m+":"+(s<10?"0":"")+s;
+  if(d>0)return d+(d===1?" Tag, ":" Tage, ")+time;
+  return time;
+}
+function updateTimerUI(){
+  var el=$("timer"),t=getTimer(),ms=currentElapsed();
+  if(!t.running&&ms===0&&!t.started){
+    el.textContent="Noch nicht gestartet";
+    el.className="timer muted";
+  }else{
+    el.textContent=(t.running?"Läuft: ":"Pausiert: ")+fmtElapsed(ms);
+    el.className="timer";
+  }
+  if(token){
+    $("tstart").style.display=(!t.running&&ms===0)?"inline-block":"none";
+    $("tpause").style.display=t.running?"inline-block":"none";
+    $("tresume").style.display=(!t.running&&ms>0)?"inline-block":"none";
+    $("treset").style.display=(ms>0||t.running)?"inline-block":"none";
+  }
 }
 function render(){
   var ul=$("list"),done=0,sum=0,goal=0;ul.innerHTML="";
@@ -116,6 +167,7 @@ function render(){
   $("setup").style.display=(!token&&!vault)?"block":"none";
   $("locked").style.display=(!token&&vault)?"block":"none";
   $("logged").style.display=token?"block":"none";
+  updateTimerUI();
 }
  
 function enc(s){return btoa(unescape(encodeURIComponent(s)));}
@@ -160,6 +212,18 @@ function bump(k){
   }else{
     next[k.id]={n:c+1,at:new Date().toISOString()};
   }
+  busy=true;
+  var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere \u2026");
+  write(next).then(function(){say("Gespeichert. F\u00FCr alle sichtbar.");})
+  .catch(function(e){
+    state=old;render();
+    say(e.message==="auth"?"Token ung\u00FCltig oder ohne Schreibrecht f\u00FCr dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
+  }).then(function(){busy=false;});
+}
+ 
+function setTimer(nextTimer){
+  if(busy)return;
+  var next=Object.assign({},state,{timer:nextTimer});
   busy=true;
   var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere \u2026");
   write(next).then(function(){say("Gespeichert. F\u00FCr alle sichtbar.");})
@@ -217,7 +281,35 @@ $("wipe").onclick=function(){
   say("Token gelöscht.");render();
 };
  
-render();load();
+$("tstart").onclick=function(){
+  setTimer({running:true,elapsed:0,started:new Date().toISOString()});
+};
+$("tpause").onclick=function(){
+  var t=getTimer();
+  var add=0;
+  if(t.started){
+    var start=new Date(t.started).getTime();
+    if(!isNaN(start))add=Date.now()-start;
+  }
+  setTimer({running:false,elapsed:t.elapsed+add,started:null});
+};
+$("tresume").onclick=function(){
+  setTimer({running:true,elapsed:getTimer().elapsed,started:new Date().toISOString()});
+};
+$("treset").onclick=function(){
+  if(!confirm("Timer auf 0 zurücksetzen?"))return;
+  setTimer({running:false,elapsed:0,started:null});
+};
+ 
+// Live-Update des Timers jede Sekunde, wenn er läuft
+function ensureTick(){
+  clearInterval(tickTimer);
+  tickTimer=setInterval(function(){
+    if(getTimer().running)updateTimerUI();
+  },1000);
+}
+ 
+render();load();ensureTick();
 setInterval(function(){if(!document.hidden)load();},120000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)load();});
 </script>
