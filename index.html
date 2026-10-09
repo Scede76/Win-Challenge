@@ -16,6 +16,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.5 'DM Sans',
 main{max-width:640px;margin:0 auto;padding:40px 20px 56px}
 h1{font:800 clamp(44px,13vw,84px)/.95 'Bricolage Grotesque',system-ui,sans-serif;margin:0 0 14px;letter-spacing:-.02em;user-select:none;-webkit-user-select:none}
 .sub{color:var(--mute);margin:0 0 28px}
+.stats{margin-bottom:24px}
+.stat{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px 18px}
+.stat label{display:block;color:var(--mute);font-size:14px;margin:0 0 6px}
+.stat b{display:block;font:800 clamp(22px,6vw,32px)/1.15 'Bricolage Grotesque',sans-serif;font-variant-numeric:tabular-nums}
+.stat .since{display:none;color:var(--mute);font-size:14px;margin-top:4px}
+.stat .acts{margin-top:12px}
+.stat .acts .b{margin:0}
 .total{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
 .total b{font:800 56px/1 'Bricolage Grotesque',sans-serif;color:var(--acc)}
 .total span{color:var(--mute)}
@@ -48,6 +55,14 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
 <body>
 <main id="app">
 <h1 id="title">Win Challenge</h1>
+<div class="stats">
+  <div class="stat">
+    <label>Laufzeit</label>
+    <b id="clock">Nicht gestartet</b>
+    <div class="since" id="since"></div>
+    <div class="acts" id="startWrap"><button class="b" id="start">Challenge starten</button></div>
+  </div>
+</div>
 <div class="total"><b id="n">0/5</b><span> geschafft</span></div>
 <div class="bar"><i id="p"></i></div>
 <ul id="list"></ul>
@@ -64,7 +79,7 @@ button.b.g{background:var(--line);color:var(--ink);margin-left:8px}
     <button class="b" id="unlock">Entsperren</button>
     <button class="b g" id="wipe">Token löschen</button>
   </div>
-  <div id="logged" style="display:none">Tippe auf eine Aufgabe, um +1 zu zählen. Bei vollem Stand setzt Tippen auf 0 zurück. <button class="b g" id="out">Sperren</button></div>
+  <div id="logged" style="display:none">Tippe auf eine Aufgabe, um +1 zu zählen. Bei vollem Stand setzt Tippen auf 0 zurück. Oben startest du die Challenge. <button class="b g" id="out">Sperren</button></div>
 </div>
 <footer id="msg"></footer>
 </main>
@@ -90,6 +105,23 @@ function fmt(iso){
   var d=new Date(iso);if(isNaN(d))return "";
   return d.toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})+" Uhr";
 }
+function startedAt(){return state.startedAt||"";}
+function pad(n){return (n<10?"0":"")+n;}
+function elapsed(iso){
+  var ms=Date.now()-new Date(iso).getTime();
+  if(isNaN(ms)||ms<0)ms=0;
+  var s=Math.floor(ms/1000),d=Math.floor(s/86400);s%=86400;
+  var h=Math.floor(s/3600);s%=3600;
+  var m=Math.floor(s/60);s%=60;
+  var t=pad(h)+":"+pad(m)+":"+pad(s);
+  return d?(d+" Tag"+(d===1?"":"e")+" "+t):t;
+}
+function tickClock(){
+  var at=startedAt(),since=$("since");
+  $("clock").textContent=at?elapsed(at):"Nicht gestartet";
+  if(at){since.style.display="block";since.textContent="gestartet am "+fmt(at);}
+  else{since.style.display="none";since.textContent="";}
+}
 function render(){
   var ul=$("list"),done=0,sum=0,goal=0;ul.innerHTML="";
   tasks.forEach(function(k){
@@ -112,6 +144,8 @@ function render(){
   });
   $("n").textContent=done+"/"+tasks.length;
   $("p").style.width=(sum/goal*100)+"%";
+  tickClock();
+  $("startWrap").style.display=startedAt()?"none":"block";
   $("setup").style.display=(!token&&!vault)?"block":"none";
   $("locked").style.display=(!token&&vault)?"block":"none";
   $("logged").style.display=token?"block":"none";
@@ -150,9 +184,23 @@ function write(next,retry){
     });
 }
  
+function saveMeta(patch,okMsg){
+  if(busy||!token)return;
+  var next=Object.assign({},state,patch);
+  delete next.attempts;
+  busy=true;
+  var old=state;state=next;holdUntil=Date.now()+90000;render();say("Speichere \u2026");
+  write(next).then(function(){say(okMsg||"Gespeichert. F\u00FCr alle sichtbar.");})
+  .catch(function(e){
+    state=old;render();
+    say(e.message==="auth"?"Token ung\u00FCltig oder ohne Schreibrecht f\u00FCr dieses Repo.":"Speichern fehlgeschlagen. Bitte noch einmal tippen.");
+  }).then(function(){busy=false;});
+}
+
 function bump(k){
   if(busy)return;
   var c=Math.min(cnt(k.id),k.max),next=Object.assign({},state);
+  delete next.attempts;
   if(c>=k.max){
     if(!confirm("\u201E"+k.t+"\u201C auf 0 zur\u00FCcksetzen?"))return;
     next[k.id]={n:0,at:""};
@@ -215,8 +263,19 @@ $("wipe").onclick=function(){
   vault="";token="";try{localStorage.removeItem("wc_vault");}catch(e){}
   say("Token gelöscht.");render();
 };
+$("start").onclick=function(){
+  if(startedAt())return;
+  if(!token){
+    $("panel").style.display="block";
+    say("Zum Starten zuerst den Admin-Modus entsperren.");
+    return;
+  }
+  if(!confirm("Challenge jetzt starten? Die Laufzeit zählt dann für alle."))return;
+  saveMeta({startedAt:new Date().toISOString()},"Challenge gestartet.");
+};
  
 render();load();
+setInterval(tickClock,1000);
 setInterval(function(){if(!document.hidden)load();},120000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)load();});
 </script>
