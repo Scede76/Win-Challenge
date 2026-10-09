@@ -92,7 +92,8 @@ var tasks=[
  {id:"fortnite",t:"Fortnite",d:"Win, zweimal hintereinander (B2B)",max:2},
  {id:"rl",t:"Rocket League",d:"Ein Win",max:1},
  {id:"phasmo",t:"Phasmophobia",d:"Schwierigste Stufe",max:1},
- {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1}
+ {id:"wwm",t:"Wer wird Millionär",d:"Durchspielen",max:1},
+ {id:"song",t:"Songspot",d:"Durchspielen",max:1}
 ];
 var state={}, token="", busy=false, vault="", holdUntil=0, tickTimer=null, clockOffset=0, pollMs=25000;
 try{vault=localStorage.getItem("wc_vault")||"";localStorage.removeItem("wc_token");}catch(e){}
