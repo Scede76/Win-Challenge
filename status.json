@@ -20,9 +20,9 @@
   "at": "2026-10-09T20:41:57.598Z"
  },
  "timer": {
-  "running": true,
-  "elapsed": 0,
-  "started": "2026-10-09T15:34:08.164Z"
+  "running": false,
+  "elapsed": 33896336,
+  "started": null
  },
  "song": {
   "n": 1,
